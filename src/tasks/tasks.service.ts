@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,12 +17,11 @@ import { AssetsService } from 'src/assets/assets.service';
 import { TasksStatusRepository } from './tasks-status.repository';
 import { Player } from 'src/player/entities/player.entity';
 import { TasksRepository } from './tasks.repository';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
 import {
   PaginatedResponse,
   PaginationDto,
 } from 'src/common/swagger/pagination';
+import { CacheResult, TasksCache } from './tasks.cache';
 
 @Injectable()
 export class TasksService {
@@ -35,7 +33,7 @@ export class TasksService {
     private tasksStatusRepository: TasksStatusRepository,
     private tasksRepository: TasksRepository,
     private em: EntityManager,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private cache: TasksCache,
   ) {}
 
   async getTasks({
@@ -43,10 +41,10 @@ export class TasksService {
     perPage,
   }: PaginationDto): Promise<PaginatedResponse<Task>> {
     // TODO: add pagination with restrictions
-    let tasks = await this.cacheManager.get<PaginatedResponse<Task>>('tasks');
+    let tasks = await this.cache.getPaginatedTasksFromCache({ page, perPage });
     if (!tasks) {
       tasks = await this.tasksRepository.getTasks({ page, perPage });
-      await this.cacheManager.set('tasks', tasks, 86400000);
+      this.cache.cachePaginatedTasks(tasks);
     }
     return tasks;
   }
@@ -56,14 +54,11 @@ export class TasksService {
     return tasks.map(async (task) => {
       const taskTuple: TaskTuple = [task, null];
 
-      const taskStatusEntity = await this.tasksStatusRepository.getTaskStatus(
-        player,
-        task.id,
-      );
+      const taskStatusEnum = await this.getTaskStatus(player, task.id);
 
       // if task exists it means that task already READY_FOR_CLAIM or FINISHED
-      if (taskStatusEntity) {
-        taskTuple[1] = taskStatusEntity.status;
+      if (taskStatusEnum) {
+        taskTuple[1] = taskStatusEnum;
         return taskTuple;
       }
 
@@ -77,7 +72,7 @@ export class TasksService {
   }
 
   async startTask(player: Player, taskId: number): Promise<TaskStatus> {
-    const task = await this.tasksRepository.findOne(taskId);
+    const task = await this.getTask(taskId);
     if (!task) {
       throw new NotFoundException();
     }
@@ -87,14 +82,11 @@ export class TasksService {
         `Task type ${task.type} is not supports start`,
       );
     }
-    const taskStatus = await this.tasksStatusRepository.getTaskStatus(
-      player,
-      taskId,
-    );
+    const taskStatus = await this.getTaskStatus(player, taskId);
 
     // if task exists it means that task already READY_FOR_CLAIM or FINISHED
     if (taskStatus) {
-      throw new BadRequestException(`Task is already ${taskStatus.status} `);
+      throw new BadRequestException(`Task is already ${taskStatus} `);
     }
 
     const result = await this.validateTask(player, task);
@@ -105,7 +97,7 @@ export class TasksService {
   }
 
   async claimTask(player: Player, taskId: number) {
-    const taskStatus = await this.tasksStatusRepository.findOne(
+    const taskStatusEntity = await this.tasksStatusRepository.findOne(
       {
         task: taskId,
         player,
@@ -113,17 +105,17 @@ export class TasksService {
       { populate: ['task'] },
     );
 
-    if (!taskStatus) {
+    if (!taskStatusEntity) {
       throw new NotFoundException();
     }
-    if (taskStatus.status !== TaskStatusEnum.READY_FOR_CLAIM) {
+    if (taskStatusEntity.status !== TaskStatusEnum.READY_FOR_CLAIM) {
       throw new BadRequestException('Task is not ready to claim');
     }
 
     try {
       await this.em.begin();
-      this.assetService.giveTaskReward(player, taskStatus.task);
-      taskStatus.status = TaskStatusEnum.FINISHED;
+      this.assetService.giveTaskReward(player, taskStatusEntity.task);
+      taskStatusEntity.status = TaskStatusEnum.FINISHED;
       await this.em.commit();
     } catch (error) {
       await this.em.rollback();
@@ -151,25 +143,49 @@ export class TasksService {
       task,
       status: TaskStatusEnum.READY_FOR_CLAIM,
     });
-    await this.em.persistAndFlush(newTaskStatus);
+    await Promise.all([
+      this.em.persistAndFlush(newTaskStatus),
+      this.cache.cacheTaskStatus(newTaskStatus),
+    ]);
     return newTaskStatus;
   }
 
   private async getTaskStatus(player: Player, taskId: number) {
-    let tasksStatus = await this.cacheManager.get<TaskStatus>(
-      `taskstatus-${player.id}-${taskId}`,
+    // NOTE:  has benefits only if player has complete tasks more than unstarted
+    const tasksStatus = await this.cache.getTaskStatusFromCache(
+      player.id,
+      taskId,
     );
+    if (tasksStatus === CacheResult.MISS) {
+      return;
+    }
     if (!tasksStatus) {
-      tasksStatus = (await this.tasksStatusRepository.getTaskStatus(
+      const tasksStatusEntity = await this.tasksStatusRepository.getTaskStatus(
         player,
         taskId,
-      )) as TaskStatus | undefined;
-      await this.cacheManager.set(
-        `taskstatus-${player.id}-${taskId}`,
-        tasksStatus,
-        86400000,
       );
+      if (tasksStatusEntity) {
+        await this.cache.cacheTaskStatus(tasksStatusEntity);
+      } else {
+        await this.cache.cacheGetTaskStatusCacheMiss(player.id, taskId);
+      }
     }
     return tasksStatus;
+  }
+
+  private async getTask(taskId: number) {
+    let task = await this.cache.getTaskFromCache(taskId);
+    if (task === CacheResult.MISS) {
+      return;
+    }
+    if (!task) {
+      task = (await this.tasksRepository.findOne(taskId)) as Task | undefined;
+      if (task) {
+        await this.cache.cacheTask(task);
+      } else {
+        await this.cache.cacheGetTaskCacheMiss(taskId);
+      }
+    }
+    return task;
   }
 }

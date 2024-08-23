@@ -6,6 +6,7 @@ import { PlayerModule } from 'src/player/player.module';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Task, TaskStatus } from './entities/task.entity';
 import { CacheModule } from 'src/cache/cache.module';
+import { TasksCache } from './tasks.cache';
 
 @Module({
   imports: [
@@ -15,6 +16,6 @@ import { CacheModule } from 'src/cache/cache.module';
     CacheModule,
   ],
   controllers: [TasksController],
-  providers: [TasksService],
+  providers: [TasksService, TasksCache],
 })
 export class TasksModule {}
