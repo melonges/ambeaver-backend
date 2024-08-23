@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import type { RedisClientOptions } from 'redis';
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheConfig } from './cache.types';
@@ -6,7 +7,7 @@ import { redisStore } from 'cache-manager-redis-yet';
 
 @Module({
   imports: [
-    NestCacheModule.registerAsync({
+    NestCacheModule.registerAsync<RedisClientOptions>({
       useFactory: async (configService: ConfigService<CacheConfig>) => ({
         store: await redisStore({
           socket: {

@@ -6,7 +6,6 @@ import {
 } from 'src/common/swagger/pagination';
 import { TaskStatusEnumDto } from './dto/task-status-enum.dto';
 import { TaskDto } from './dto/task.dto';
-import { TasksRepository } from './tasks.repository';
 import { TasksService } from './tasks.service';
 import { mapTaskStatusEnumToDto } from './tasks.utils';
 import {
@@ -22,10 +21,7 @@ import { EnsureRequestContext } from '@mikro-orm/core';
 @ApiTags('Tasks')
 @Controller('tasks')
 export class TasksController {
-  constructor(
-    private readonly tasksService: TasksService,
-    private readonly tasksRepository: TasksRepository,
-  ) {}
+  constructor(private readonly tasksService: TasksService) {}
 
   @Get()
   @ApiPaginatedResponse(TaskDto)
@@ -35,7 +31,7 @@ export class TasksController {
     @Query() options: PaginationDto,
   ): Promise<PaginatedResponse<TaskDto>> {
     const { data: tasks, meta: tasksMeta } =
-      await this.tasksRepository.getTasks(options);
+      await this.tasksService.getTasks(options);
     const arrayOfTaskStatusTuple = await Promise.all(
       this.tasksService.checkTasksOnComplitionAndUpdate(player, tasks),
     );

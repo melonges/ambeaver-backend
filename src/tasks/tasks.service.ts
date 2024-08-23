@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,6 +18,12 @@ import { AssetsService } from 'src/assets/assets.service';
 import { TasksStatusRepository } from './tasks-status.repository';
 import { Player } from 'src/player/entities/player.entity';
 import { TasksRepository } from './tasks.repository';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import {
+  PaginatedResponse,
+  PaginationDto,
+} from 'src/common/swagger/pagination';
 
 @Injectable()
 export class TasksService {
@@ -28,7 +35,21 @@ export class TasksService {
     private tasksStatusRepository: TasksStatusRepository,
     private tasksRepository: TasksRepository,
     private em: EntityManager,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
+
+  async getTasks({
+    page,
+    perPage,
+  }: PaginationDto): Promise<PaginatedResponse<Task>> {
+    // TODO: add pagination with restrictions
+    let tasks = await this.cacheManager.get<PaginatedResponse<Task>>('tasks');
+    if (!tasks) {
+      tasks = await this.tasksRepository.getTasks({ page, perPage });
+      await this.cacheManager.set('tasks', tasks, 86400000);
+    }
+    return tasks;
+  }
 
   checkTasksOnComplitionAndUpdate(player: Player, tasks: Task[]) {
     type TaskTuple = [task: Task, taskStatus: TaskStatusEnum | null];
@@ -132,5 +153,23 @@ export class TasksService {
     });
     await this.em.persistAndFlush(newTaskStatus);
     return newTaskStatus;
+  }
+
+  private async getTaskStatus(player: Player, taskId: number) {
+    let tasksStatus = await this.cacheManager.get<TaskStatus>(
+      `taskstatus-${player.id}-${taskId}`,
+    );
+    if (!tasksStatus) {
+      tasksStatus = (await this.tasksStatusRepository.getTaskStatus(
+        player,
+        taskId,
+      )) as TaskStatus | undefined;
+      await this.cacheManager.set(
+        `taskstatus-${player.id}-${taskId}`,
+        tasksStatus,
+        86400000,
+      );
+    }
+    return tasksStatus;
   }
 }
