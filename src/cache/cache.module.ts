@@ -15,6 +15,7 @@ import { CacheService } from './cache.service';
             host: configService.getOrThrow('REDIS_HOST'),
             port: configService.getOrThrow('REDIS_PORT'),
           },
+          isCacheable: (value) => typeof value !== 'undefined',
         }),
       }),
       inject: [ConfigService],
