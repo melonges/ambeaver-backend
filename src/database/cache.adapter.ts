@@ -1,7 +1,15 @@
 import { CacheAdapter } from '@mikro-orm/core';
 
 export class MemoryCacheAdapter implements CacheAdapter {
-  constructor(private cacheService: CacheAdapter) {}
+  private cacheService: CacheAdapter;
+  constructor({
+    cacheService,
+  }: {
+    cacheService: CacheAdapter;
+    expiration: number;
+  }) {
+    this.cacheService = cacheService;
+  }
   get<T = any>(name: string): T | Promise<T | undefined> | undefined {
     return this.cacheService.get(name);
   }

@@ -29,7 +29,7 @@ import { CacheModule } from 'src/cache/cache.module';
           debug: process.env.NODE_ENV === 'development',
           resultCache: {
             adapter: MemoryCacheAdapter,
-            options: cacheService,
+            options: { cacheService },
           },
         };
       },
