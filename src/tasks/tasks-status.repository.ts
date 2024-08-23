@@ -1,10 +1,13 @@
-import { EntityRepository } from '@mikro-orm/core';
+import { EntityRepository, FilterQuery, FindOneOptions } from '@mikro-orm/core';
 import { TaskStatus } from './entities/task.entity';
 import { Player } from 'src/player/entities/player.entity';
 
 export class TasksStatusRepository extends EntityRepository<TaskStatus> {
-  getTaskStatus(player: Player, taskId: number) {
-    return this.findOne({ player, task: taskId });
+  getTaskStatus(
+    filter: FilterQuery<TaskStatus>,
+    options: FindOneOptions<TaskStatus> = { cache: 86400000 },
+  ) {
+    return this.findOne(filter, options);
   }
 
   async isTaskStatusExists(player: Player, taskId: number) {

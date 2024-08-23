@@ -1,4 +1,4 @@
-import { EntityRepository } from '@mikro-orm/core';
+import { EntityRepository, FilterQuery } from '@mikro-orm/core';
 import { Task } from './entities/task.entity';
 import {
   PaginatedResponse,
@@ -12,7 +12,7 @@ export class TasksRepository extends EntityRepository<Task> {
   }: PaginationDto): Promise<PaginatedResponse<Task>> {
     const [tasks, count] = await this.findAndCount(
       {},
-      { limit: perPage, offset: page * perPage },
+      { limit: perPage, offset: page * perPage, cache: 86400000 },
     );
     return {
       data: tasks,
@@ -23,5 +23,9 @@ export class TasksRepository extends EntityRepository<Task> {
         totalItems: count,
       },
     };
+  }
+
+  getTask(filter: FilterQuery<Task>) {
+    return this.findOne(filter, { cache: 86400000 });
   }
 }

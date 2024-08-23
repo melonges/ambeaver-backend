@@ -17,11 +17,15 @@ import { PlayerEntity } from 'src/common/decorators/player-entity.decorator';
 import { Player } from 'src/player/entities/player.entity';
 import { TaskType } from './entities/task.entity';
 import { EnsureRequestContext } from '@mikro-orm/core';
+import { TasksRepository } from './tasks.repository';
 
 @ApiTags('Tasks')
 @Controller('tasks')
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(
+    private readonly tasksService: TasksService,
+    private readonly tasksRepository: TasksRepository,
+  ) {}
 
   @Get()
   @ApiPaginatedResponse(TaskDto)
@@ -31,7 +35,7 @@ export class TasksController {
     @Query() options: PaginationDto,
   ): Promise<PaginatedResponse<TaskDto>> {
     const { data: tasks, meta: tasksMeta } =
-      await this.tasksService.getTasks(options);
+      await this.tasksRepository.getTasks(options);
     const arrayOfTaskStatusTuple = await Promise.all(
       this.tasksService.checkTasksOnComplitionAndUpdate(player, tasks),
     );

@@ -6,10 +6,16 @@ import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseService } from './database.service';
 import { DatabaseConfig } from './database.types';
+import { CacheService } from 'src/cache/cache.service';
+import { MemoryCacheAdapter } from './cache.adapter';
+import { CacheModule } from 'src/cache/cache.module';
 @Module({
   imports: [
     MikroOrmModule.forRootAsync({
-      useFactory: (configService: ConfigService<DatabaseConfig>) => {
+      useFactory: (
+        configService: ConfigService<DatabaseConfig>,
+        cacheService: CacheService,
+      ) => {
         return {
           entities: ['dist/**/*.entity.js'],
           entitiesTs: ['src/**/*.entity.ts'],
@@ -21,12 +27,17 @@ import { DatabaseConfig } from './database.types';
           dbName: configService.getOrThrow('POSTGRES_DB'),
           driver: PostgreSqlDriver,
           debug: process.env.NODE_ENV === 'development',
+          resultCache: {
+            adapter: MemoryCacheAdapter,
+            options: cacheService,
+          },
         };
       },
-      inject: [ConfigService],
-      imports: [ConfigModule],
+      inject: [ConfigService, CacheService],
+      imports: [ConfigModule, CacheModule],
     }),
     ConfigModule,
+    CacheModule,
   ],
   exports: [MikroOrmModule],
   providers: [DatabaseService],
