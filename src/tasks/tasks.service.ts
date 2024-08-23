@@ -117,6 +117,7 @@ export class TasksService {
       this.assetService.giveTaskReward(player, taskStatusEntity.task);
       taskStatusEntity.status = TaskStatusEnum.FINISHED;
       await this.em.commit();
+      await this.cache.cacheTaskStatus(taskStatusEntity);
     } catch (error) {
       await this.em.rollback();
       throw error;
@@ -151,7 +152,7 @@ export class TasksService {
   }
 
   private async getTaskStatus(player: Player, taskId: number) {
-    // NOTE:  has benefits only if player has complete tasks more than unstarted
+    // NOTE: has benefits only if player has complete tasks more than unstarted
     const tasksStatus = await this.cache.getTaskStatusFromCache(
       player.id,
       taskId,
