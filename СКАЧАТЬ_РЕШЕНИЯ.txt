@@ -1,0 +1,31 @@
+РЕШЕНИЯ ЭКЗАМЕНАЦИОННЫХ БИЛЕТОВ — ГДЕ НАЙТИ ФАЙЛЫ
+================================================
+
+Файлы лежат в КОРНЕ проекта (workspace):
+
+  1. Resheniya_bilety_TMM_magistratura_2026.docx  — Word
+  2. Resheniya_bilety_TMM_magistratura_2026.pdf   — PDF
+
+Также в папке: exam_solutions/
+
+КАК СКАЧАТЬ В CURSOR:
+---------------------
+1. Откройте панель файлов слева (Explorer)
+2. В корне проекта найдите файлы с именем Resheniya_bilety_TMM...
+3. Правый клик → Download / Скачать
+
+ИЛИ через GitHub (если агент запушил изменения):
+-------------------------------------------------
+Ветка: cursor/exam-solutions-doc-b539
+Pull Request: https://github.com/melonges/ambeaver-backend/pull/3
+
+На GitHub: зайдите в PR → Files changed → 
+найдите exam_solutions/Resheniya_bilety_TMM_magistratura_2026.docx
+→ кнопка ... → Download raw file
+
+СОДЕРЖИМОЕ:
+-----------
+- Билет 1 (РМ.02м.01) — 10 задач
+- Билет 2 (РМ.02м.02) — 10 задач  
+- Билет 3 (РМ.02м.03) — 10 задач
+- План подготовки и формулы
